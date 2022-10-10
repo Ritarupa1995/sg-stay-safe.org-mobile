@@ -10,6 +10,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.security.keystore.KeyGenParameterSpec;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -19,6 +20,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.security.crypto.EncryptedSharedPreferences;
+import androidx.security.crypto.MasterKeys;
 
 import com.iss.team1.safe.checkin.model.CheckInRequestVo;
 import com.iss.team1.safe.checkin.model.QRStr;
@@ -32,27 +35,19 @@ public class HomePageActivity extends AppCompatActivity {
     private final String[] permissions = new String[]{Manifest.permission.CAMERA,
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE};
-    //创建两个Bitmap,一个放二维码，一个放logo
     private String checkInUrl = "https://checkin-sg-stay-safe-org.ap-southeast-1.elasticbeanstalk.com/";
+    private String checkInUrl2 = "https://checkin.sg-stay-safe.com/";
     private TextView tvCheckinReqult;
+
+    private SharedPreferences.Editor sharedPrefsEditor;
+    private SharedPreferences sharedPreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.home_page);
-//        tvSaveCode = findViewById(R.id.tv_save_code);
-        tvCheckinReqult = findViewById(R.id.tv_checkin_result);
 
-//        findViewById(R.id.tv_create_code).setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                //如果需要logo圆角的话可以对bitmap进行圆角处理或者图片用圆角图片
-//                logoBmp = BitmapFactory.decodeResource(getResources(), R.drawable.logo);
-//                codeBmp = ZXingUtils.createQRImage(url, logoBmp);
-//                ((ImageView) findViewById(R.id.image)).setImageBitmap(codeBmp);
-//                tvSaveCode.setVisibility(codeBmp != null ? View.VISIBLE : View.GONE);
-//            }
-//        });
+        tvCheckinReqult = findViewById(R.id.tv_checkin_result);
         findViewById(R.id.tv_code).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -69,12 +64,7 @@ public class HomePageActivity extends AppCompatActivity {
                 }
             }
         });
-//        tvSaveCode.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                FileUtil.saveImageToGallery(MainActivity.this, codeBmp);
-//            }
-//        });
+        initSharedPreferences();
     }
 
     @Override
@@ -83,10 +73,10 @@ public class HomePageActivity extends AppCompatActivity {
         if (requestCode == 1000 && resultCode == Activity.RESULT_OK) {
             if (data != null) {
                 String resultText = data.getStringExtra("resultText");
-//                Toast.makeText(this, resultText, Toast.LENGTH_LONG).show();
-                //Call check in api
+
+              
                 new MyTask().execute(resultText);
-//                checkIn(resultText);
+
             }
         }
     }
@@ -116,18 +106,19 @@ public class HomePageActivity extends AppCompatActivity {
             String jsonStr = HashUtil.deCrypt(rawStr);
             Log.i("checkin jsonStr", jsonStr);
             QRStr qrObj = (QRStr) JsonUtil.convertJsonToObj(jsonStr, QRStr.class);
-            if (qrObj == null || TextUtils.isEmpty(qrObj.getSiteId()) || TextUtils.isEmpty(qrObj.getAnonymousId())) {
+            if (qrObj == null || TextUtils.isEmpty(qrObj.getSiteId())) {
                 resultMsg = "QR Code is invalid...";
             }
-            CheckInRequestVo requestVo = new CheckInRequestVo(qrObj.getAnonymousId(), qrObj.getSiteId());
+            CheckInRequestVo requestVo = new CheckInRequestVo("", qrObj.getSiteId());
             String requestStr = JsonUtil.convertObjToStr(requestVo);
             Log.i("checkin requestStr", requestStr);
             String respStr = null;
             try {
-                SharedPreferences prefs = getSharedPreferences("safeStore", Context.MODE_PRIVATE);
-                String idToken = prefs.getString("idToken", null);
-                Log.i("SharedPreferences idtoken={}", idToken);
-                respStr = HttpsUtil.jsonPostWithCA(checkInUrl, requestStr, getApplication(), idToken);
+//                SharedPreferences prefs = getSharedPreferences("safeStore", Context.MODE_PRIVATE);
+//                String idToken = prefs.getString("idToken", null);
+                String idToken = getPR("safeStore");
+                Log.i("SharedPreferences idToken={}", idToken);
+                respStr = HttpsUtil.jsonPostWithCA(checkInUrl2, requestStr, getApplication(), idToken);
                 Log.i("checkin respStr", respStr);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -147,5 +138,30 @@ public class HomePageActivity extends AppCompatActivity {
             tvCheckinReqult.setText(resultMsg);
             tvCheckinReqult.getPaint().setFakeBoldText(true);
         }
+    }
+
+    private void initSharedPreferences() {
+        String sharedPrefsFile = "ID_TOKEN";
+        KeyGenParameterSpec keyGenParameterSpec = MasterKeys.AES256_GCM_SPEC;
+        String mainKeyAlias = null;
+        try {
+            mainKeyAlias = MasterKeys.getOrCreate(keyGenParameterSpec);
+            sharedPreferences = EncryptedSharedPreferences.create(
+                    sharedPrefsFile,
+                    mainKeyAlias,
+                    getApplicationContext(),
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            );
+
+            sharedPrefsEditor = sharedPreferences.edit();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String getPR(String keyValue) {
+        String prValue = sharedPreferences.getString(keyValue, null);
+        return prValue;
     }
 }

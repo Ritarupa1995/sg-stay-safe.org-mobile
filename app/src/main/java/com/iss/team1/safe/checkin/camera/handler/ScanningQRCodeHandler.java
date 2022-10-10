@@ -127,7 +127,7 @@ public final class ScanningQRCodeHandler extends Handler {
         }
     }
 
-    public void quitSynchronously() {
+public void quitSynchronously() {
         state = State.DONE;
         cameraManager.stopPreview();
         Message quit = Message.obtain(decodeThread.getHandler(), R.id.quit);
@@ -135,8 +135,12 @@ public final class ScanningQRCodeHandler extends Handler {
         try {
             // Wait at most half a second; should be enough time, and onPause() will timeout quickly
             decodeThread.join(500L);
-        } catch (InterruptedException e) {
-            // continue
+        } catch (InterruptedException ie) {
+            logger.error("InterruptedException: ", ie);
+            Thread.currentThread().interrupt();
+        }
+        catch (ExecutionException ee) {
+            logger.error("ExecutionException: ",ee);
         }
 
         // Be absolutely sure we don't send any queued up messages

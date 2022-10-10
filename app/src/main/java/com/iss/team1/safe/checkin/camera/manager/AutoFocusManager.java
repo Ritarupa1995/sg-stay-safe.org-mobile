@@ -114,13 +114,17 @@ final class AutoFocusManager implements Camera.AutoFocusCallback {
         }
     }
 
-    private final class AutoFocusTask extends AsyncTask<Object, Object, Object> {
+ private final class AutoFocusTask extends AsyncTask<Object, Object, Object> {
         @Override
         protected Object doInBackground(Object... voids) {
             try {
                 Thread.sleep(AUTO_FOCUS_INTERVAL_MS);
             } catch (InterruptedException e) {
-                // continue
+                logger.error("InterruptedException: ", e);
+                Thread.currentThread().interrupt();
+            }
+            catch (ExecutionException ee) {
+                logger.error("ExecutionException: ",ee);
             }
             start();
             return null;

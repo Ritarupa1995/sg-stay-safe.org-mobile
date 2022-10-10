@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">checkin.sg-stay-safe.com</domain>
+        <pin-set expiration="2023-09-04">
+            <pin digest="SHA-256">7VXJbMxZ/LLpjiQrfu20SrNECVO+9QUQszyEWgFyjMk=</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>

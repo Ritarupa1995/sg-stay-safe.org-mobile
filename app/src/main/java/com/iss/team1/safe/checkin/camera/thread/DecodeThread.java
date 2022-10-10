@@ -79,7 +79,11 @@ public final class DecodeThread extends Thread {
         try {
             handlerInitLatch.await();
         } catch (InterruptedException ie) {
-            // continue?
+            logger.error("InterruptedException: ", ie);
+            Thread.currentThread().interrupt();
+        }
+        catch (ExecutionException ee) {
+            logger.error("ExecutionException: ",ee);
         }
         return handler;
     }
